@@ -1,13 +1,12 @@
-# RNRI: Regularized Newton Raphson Inversion for Text-to-Image Diffusion Model
+# GNRI: Lightning-Fast Image Inversion and Editing for Text-to-Image Diffusion Models
 
-> Dvir Samuel, Barak Meiri, Nir Darshan, Gal Chechik, Shai Avidan, Rami Ben-Ari
-> OriginAI, Tel Aviv University, Bar Ilan University, NVIDIA Research
+> Dvir Samuel, Barak Meiri, Haggai Maron, Yoad Tewel, Nir Darshan, Gal Chechik, Shai Avidan, Rami Ben-Ari
+> OriginAI, Tel Aviv University, Technion, Bar Ilan University, NVIDIA Research
 
 >
 >
-> Diffusion inversion is the problem of taking an image and a text prompt that describes it, and finding a noise latent that would generate the image. Most current inversion techniques operate by approximately solving an implicit equation, and may converge slowly or yield poor reconstructed images.
-Here, we formulate the problem as finding the roots of an implicit equation and design a method to solve it efficiently. Our solution is based on Newton-Raphson (NR), a well-known technique in numerical analysis. A naive application of NR may be computationally infeasible and tends to converge to incorrect solutions. We describe an efficient regularized formulation that converges quickly to solution that provide high-quality reconstructions. We also identify a source of inconsistency stemming from prompt conditioning during the inversion process, which significantly degrades the inversion quality. To address this, we introduce a prompt-aware adjustment of the encoding, effectively correcting this issue.
-Our solution, Regularized Newton-Raphson Inversion, inverts an image within 0.5 sec for latent consistency models, opening the door for interactive image editing. We further demonstrate improved results in image interpolation and generation of rare objects.
+> Diffusion inversion is the problem of taking an image and a text prompt that describes it and finding a noise latent that would generate the exact same image. Most current deterministic inversion techniques operate by approximately solving an implicit equation and may converge slowly or yield poor reconstructed images. We formulate the problem by finding the roots of an implicit equation and devlop a method to solve it efficiently. Our solution is based on Newton-Raphson (NR), a well-known technique in numerical analysis. We show that a vanilla application of NR is computationally infeasible while naively transforming it to a computationally tractable alternative tends to converge to out-of-distribution solutions, resulting in poor reconstruction and editing. We therefore derive an efficient guided formulation that fastly converges and provides high-quality reconstructions and editing. We showcase our method on real image editing with three popular open-sourced diffusion models: Stable Diffusion, SDXL-Turbo, and Flux with different deterministic schedulers. Our solution, Guided Newton-Raphson Inversion, inverts an image within 0.4 sec (on an A100 GPU) for few-step models (SDXL-Turbo and Flux.1), opening the door for interactive image editing. We further show improved results in image interpolation and generation of rare objects.
+
 
 
 <a href="https://arxiv.org/abs/2312.12540"><img src="https://img.shields.io/badge/arXiv-2312.12540-b31b1b.svg" height=22.5></a>
