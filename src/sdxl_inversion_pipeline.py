@@ -1,18 +1,15 @@
 # Code is based on ReNoise https://github.com/garibida/ReNoise-Inversion
 
-import torch
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from diffusers import (
-    StableDiffusionXLImg2ImgPipeline,
-)
-from diffusers.utils.torch_utils import randn_tensor
-
+import torch
+from diffusers import StableDiffusionXLImg2ImgPipeline
 from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import (
+    PipelineImageInput,
     StableDiffusionXLPipelineOutput,
     retrieve_timesteps,
-    PipelineImageInput
 )
+from diffusers.utils.torch_utils import randn_tensor
 
 from src.eunms import Epsilon_Update_Type
 
@@ -35,45 +32,46 @@ def _backward_ddim(x_tm1, alpha_t, alpha_tm1, eps_xt):
 class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
     # @torch.no_grad()
     def __call__(
-            self,
-            prompt: Union[str, List[str]] = None,
-            prompt_2: Optional[Union[str, List[str]]] = None,
-            image: PipelineImageInput = None,
-            strength: float = 0.3,
-            num_inversion_steps: int = 50,
-            timesteps: List[int] = None,
-            denoising_start: Optional[float] = None,
-            denoising_end: Optional[float] = None,
-            guidance_scale: float = 1.0,
-            negative_prompt: Optional[Union[str, List[str]]] = None,
-            negative_prompt_2: Optional[Union[str, List[str]]] = None,
-            num_images_per_prompt: Optional[int] = 1,
-            eta: float = 0.0,
-            generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-            latents: Optional[torch.FloatTensor] = None,
-            prompt_embeds: Optional[torch.FloatTensor] = None,
-            negative_prompt_embeds: Optional[torch.FloatTensor] = None,
-            pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
-            negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
-            ip_adapter_image: Optional[PipelineImageInput] = None,
-            output_type: Optional[str] = "pil",
-            return_dict: bool = True,
-            cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-            guidance_rescale: float = 0.0,
-            original_size: Tuple[int, int] = None,
-            crops_coords_top_left: Tuple[int, int] = (0, 0),
-            target_size: Tuple[int, int] = None,
-            negative_original_size: Optional[Tuple[int, int]] = None,
-            negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
-            negative_target_size: Optional[Tuple[int, int]] = None,
-            aesthetic_score: float = 6.0,
-            negative_aesthetic_score: float = 2.5,
-            clip_skip: Optional[int] = None,
-            callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
-            callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-            num_inference_steps: int = 50,
-            inv_hp=None,
-            **kwargs,
+        self,
+        device,
+        prompt: Union[str, List[str]] = None,
+        prompt_2: Optional[Union[str, List[str]]] = None,
+        image: PipelineImageInput = None,
+        strength: float = 0.3,
+        num_inversion_steps: int = 50,
+        timesteps: List[int] = None,
+        denoising_start: Optional[float] = None,
+        denoising_end: Optional[float] = None,
+        guidance_scale: float = 1.0,
+        negative_prompt: Optional[Union[str, List[str]]] = None,
+        negative_prompt_2: Optional[Union[str, List[str]]] = None,
+        num_images_per_prompt: Optional[int] = 1,
+        eta: float = 0.0,
+        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
+        latents: Optional[torch.FloatTensor] = None,
+        prompt_embeds: Optional[torch.FloatTensor] = None,
+        negative_prompt_embeds: Optional[torch.FloatTensor] = None,
+        pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
+        negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
+        ip_adapter_image: Optional[PipelineImageInput] = None,
+        output_type: Optional[str] = "pil",
+        return_dict: bool = True,
+        cross_attention_kwargs: Optional[Dict[str, Any]] = None,
+        guidance_rescale: float = 0.0,
+        original_size: Tuple[int, int] = None,
+        crops_coords_top_left: Tuple[int, int] = (0, 0),
+        target_size: Tuple[int, int] = None,
+        negative_original_size: Optional[Tuple[int, int]] = None,
+        negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
+        negative_target_size: Optional[Tuple[int, int]] = None,
+        aesthetic_score: float = 6.0,
+        negative_aesthetic_score: float = 2.5,
+        clip_skip: Optional[int] = None,
+        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        num_inference_steps: int = 50,
+        inv_hp=None,
+        **kwargs,
     ):
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
@@ -259,13 +257,16 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
                 if ip_adapter_image is not None:
                     added_cond_kwargs["image_embeds"] = image_embeds
 
-                z_tp1 = self.inversion_step(latents,
-                                            t,
-                                            prompt_embeds,
-                                            added_cond_kwargs,
-                                            prev_timestep=prev_timestep,
-                                            inv_hp=inv_hp,
-                                            z_0=self.z_0)
+                z_tp1 = self.inversion_step(
+                    device,
+                    latents,
+                    t,
+                    prompt_embeds,
+                    added_cond_kwargs,
+                    prev_timestep=prev_timestep,
+                    inv_hp=inv_hp,
+                    z_0=self.z_0,
+                )
 
                 prev_timestep = t
                 latents = z_tp1
@@ -302,9 +303,11 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
 
         return StableDiffusionXLPipelineOutput(images=image), all_latents
 
-    def get_timestamp_dist(self, z_0, timesteps):
+    def get_timestamp_dist(self, device, z_0, timesteps):
         timesteps = timesteps.to(z_0.device)
-        sigma = self.scheduler.sigmas.cuda()[:-1][self.scheduler.timesteps == timesteps]
+        sigma = self.scheduler.sigmas.to(device)[:-1][
+            self.scheduler.timesteps == timesteps
+        ]
         z_0 = z_0.reshape(-1, 1)
 
         def gaussian_pdf(x):
@@ -316,29 +319,42 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
         return gaussian_pdf
 
     def inversion_step(
-            self,
-            z_t: torch.tensor,
-            t: torch.tensor,
-            prompt_embeds,
-            added_cond_kwargs,
-            prev_timestep: Optional[torch.tensor] = None,
-            inv_hp=None,
-            z_0=None,
+        self,
+        device,
+        z_t: torch.tensor,
+        t: torch.tensor,
+        prompt_embeds,
+        added_cond_kwargs,
+        prev_timestep: Optional[torch.tensor] = None,
+        inv_hp=None,
+        z_0=None,
     ) -> torch.tensor:
 
         n_iters, alpha, lr = inv_hp
         latent = z_t
         best_latent = None
         best_score = torch.inf
-        curr_dist = self.get_timestamp_dist(z_0, t)
+        curr_dist = self.get_timestamp_dist(device, z_0, t)
         for i in range(n_iters):
             latent.requires_grad = True
             noise_pred = self.unet_pass(latent, t, prompt_embeds, added_cond_kwargs)
 
             next_latent = self.backward_step(noise_pred, t, z_t, prev_timestep)
-            f_x = (next_latent - latent).abs() - alpha * curr_dist(next_latent)
-            l = f_x.sum()
+
+            # GNRI v2 objective
+            # f_x = (next_latent - latent).abs() - alpha * curr_dist(next_latent)
+
+            # GNRI v4 objective
+            regularizer = alpha * torch.linalg.norm(z_t - latent)
+            f_x = (next_latent - latent).abs().sum() + regularizer
+
+            # print(torch.linalg.norm(z_t - latent).shape)
+            # f_x = (next_latent - latent).abs()
+            l = f_x
             score = f_x.mean()
+            # print(
+            #     "residual", score, "regularizer fraction", (regularizer / score).item()
+            # )
 
             if score < best_score:
                 best_score = score
@@ -348,14 +364,14 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
             latent = latent - (1 / (64 * 64 * 4)) * (l / latent.grad)
             latent.grad = None
             latent._grad_fn = None
-
+        # print("norm after step", torch.norm(best_latent))
         return best_latent
 
     @torch.no_grad()
     def unet_pass(self, z_t, t, prompt_embeds, added_cond_kwargs):
         latent_model_input = torch.cat([z_t] * 2) if self.do_classifier_free_guidance else z_t
         latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-        return self.unet(
+        result = self.unet(
             latent_model_input,
             t,
             encoder_hidden_states=prompt_embeds,
@@ -364,6 +380,7 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
             added_cond_kwargs=added_cond_kwargs,
             return_dict=False,
         )[0]
+        return result[:1] if self.do_classifier_free_guidance else result
 
     @torch.no_grad()
     def backward_step(self, nosie_pred, t, z_t, prev_timestep):

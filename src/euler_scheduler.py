@@ -1,12 +1,14 @@
 # Code is based on ReNoise https://github.com/garibida/ReNoise-Inversion
 
+from typing import List, Optional, Tuple, Union
+
+import numpy as np
+import torch
 from diffusers import EulerAncestralDiscreteScheduler
 from diffusers.utils import BaseOutput
-import torch
-from typing import List, Optional, Tuple, Union
-import numpy as np
 
 from src.eunms import Epsilon_Update_Type
+
 
 class EulerAncestralDiscreteSchedulerOutput(BaseOutput):
     """
@@ -55,7 +57,6 @@ class MyEulerAncestralDiscreteScheduler(EulerAncestralDiscreteScheduler):
 
         self._init_step_index(timestep.view((1)))
         return EulerAncestralDiscreteScheduler.scale_model_input(self, sample, timestep)
-
 
     def step(
         self,
@@ -143,10 +144,12 @@ class MyEulerAncestralDiscreteScheduler(EulerAncestralDiscreteScheduler):
         prev_sample = sample + derivative * dt
 
         device = model_output.device
-        # noise = randn_tensor(model_output.shape, dtype=model_output.dtype, device=device, generator=generator)
-        # prev_sample = prev_sample + noise * sigma_up
 
-        prev_sample = prev_sample + self.noise_list[self.step_index] * sigma_up
+        # move everything to same device, this is necessary if we're using different devices everywhere
+        prev_sample = prev_sample.to(device)
+        prev_sample = prev_sample + self.noise_list[self.step_index].to(
+            device
+        ) * sigma_up.to(device)
 
         # Cast sample back to model compatible dtype
         prev_sample = prev_sample.to(model_output.dtype)
@@ -262,7 +265,6 @@ class MyEulerAncestralDiscreteScheduler(EulerAncestralDiscreteScheduler):
                     loss = torch.norm(n - req_noise.detach())
                     loss.backward()
                     self.noise_list[self.step_index] -= n.grad.detach() * 1.8
-
 
         prev_sample = prev_sample + self.noise_list[self.step_index] * sigma_up
 
@@ -466,14 +468,12 @@ class MyEulerAncestralDiscreteScheduler(EulerAncestralDiscreteScheduler):
 
     #     prev_sample = prev_sample - self.noise_list[self.step_index] * sigma_up
 
-
     #     if not return_dict:
     #         return (prev_sample,)
 
     #     return EulerAncestralDiscreteSchedulerOutput(
     #         prev_sample=prev_sample, pred_original_sample=None
     #     )
-
 
     # def step_friendly_inversion(
     #     self,

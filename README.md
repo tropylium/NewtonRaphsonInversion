@@ -1,3 +1,11 @@
+# My Changes
+* Fixed various errors to get `ReadlTimeEditingNotebook.ipynb` working (import, device errors)
+* Fixed CFG error allowing guidance scale > 1.0
+* Additionally separated inversion/ inference to two GPU's because mine aren't large enough to fit SDXL on one GPU
+* Implemented DDIM Scheduler in addition to Euler Scheduler
+
+
+Original README:
 # GNRI: Lightning-Fast Image Inversion and Editing for Text-to-Image Diffusion Models
 
 > Dvir Samuel, Barak Meiri, Haggai Maron, Yoad Tewel, Nir Darshan, Gal Chechik, Shai Avidan, Rami Ben-Ari
