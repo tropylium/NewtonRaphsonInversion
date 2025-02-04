@@ -155,16 +155,21 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
         def denoising_value_valid(dnv):
             return isinstance(self.denoising_end, float) and 0 < dnv < 1
 
-        timesteps, num_inversion_steps = retrieve_timesteps(self.scheduler, num_inversion_steps, device, timesteps)
-        timesteps_num_inference_steps, num_inference_steps = retrieve_timesteps(self.scheduler_inference,
-                                                                                num_inference_steps, device, None)
-
-        timesteps, num_inversion_steps = self.get_timesteps(
-            num_inversion_steps,
-            strength,
-            device,
-            denoising_start=self.denoising_start if denoising_value_valid else None,
+        timesteps, num_inversion_steps = retrieve_timesteps(
+            self.scheduler, num_inversion_steps, device, timesteps
         )
+
+        # Note: ???, not sure why the commented section below is needed, seems to cause incomplete inversion
+        # by truncating number of steps
+        # timesteps_num_inference_steps, num_inference_steps = retrieve_timesteps(self.scheduler_inference,
+        #                                                                         num_inference_steps, device, None)
+
+        # timesteps, num_inversion_steps = self.get_timesteps(
+        #     num_inversion_steps,
+        #     strength,
+        #     device,
+        #     denoising_start=self.denoising_start if denoising_value_valid else None,
+        # )
         # latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
 
         # add_noise = True if self.denoising_start is None else False
@@ -354,15 +359,15 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
                 regularizer = alpha * torch.linalg.norm(latent - mu_t)
             elif scheduler_type == "ddim":
                 # print("using ddim scheduler")
-                next_t = (
+                prev_t = (
                     t
-                    + self.scheduler.config.num_train_timesteps
+                    - self.scheduler.config.num_train_timesteps
                     // self.scheduler.num_inference_steps
                 )
                 mu_t = (
                     torch.sqrt(
-                        self.scheduler.alphas_cumprod[next_t]
-                        / self.scheduler.alphas_cumprod[t]
+                        self.scheduler.alphas_cumprod[t]
+                        / self.scheduler.alphas_cumprod[prev_t]
                     )
                     * z_t
                 )
