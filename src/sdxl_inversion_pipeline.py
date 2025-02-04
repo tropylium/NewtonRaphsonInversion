@@ -330,31 +330,58 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
         z_0=None,
     ) -> torch.tensor:
 
-        n_iters, alpha, lr = inv_hp
+        n_iters, alpha, lr, scheduler_type = inv_hp
         latent = z_t
         best_latent = None
         best_score = torch.inf
-        curr_dist = self.get_timestamp_dist(device, z_0, t)
+
+        # print(f"inverting for timestep: {t}")
+        # curr_dist = self.get_timestamp_dist(device, z_0, t)
         for i in range(n_iters):
             latent.requires_grad = True
+            # print("latent shape", latent.shape)
             noise_pred = self.unet_pass(latent, t, prompt_embeds, added_cond_kwargs)
 
             next_latent = self.backward_step(noise_pred, t, z_t, prev_timestep)
+            # print("next latent shape", next_latent.shape)
 
             # GNRI v2 objective
             # f_x = (next_latent - latent).abs() - alpha * curr_dist(next_latent)
 
             # GNRI v4 objective
-            regularizer = alpha * torch.linalg.norm(z_t - latent)
-            f_x = (next_latent - latent).abs().sum() + regularizer
-
-            # print(torch.linalg.norm(z_t - latent).shape)
-            # f_x = (next_latent - latent).abs()
-            l = f_x
-            score = f_x.mean()
+            if scheduler_type == "euler":
+                mu_t = z_t  # yes the notation is a little wack
+                regularizer = alpha * torch.linalg.norm(latent - mu_t)
+            elif scheduler_type == "ddim":
+                # print("using ddim scheduler")
+                next_t = (
+                    t
+                    + self.scheduler.config.num_train_timesteps
+                    // self.scheduler.num_inference_steps
+                )
+                mu_t = (
+                    torch.sqrt(
+                        self.scheduler.alphas_cumprod[next_t]
+                        / self.scheduler.alphas_cumprod[t]
+                    )
+                    * z_t
+                )
+                regularizer = (
+                    alpha
+                    / (1 - self.scheduler.alphas_cumprod[t])
+                    * torch.linalg.norm(latent - mu_t)
+                )
+                # regularizer = torch.tensor([0.0], device=device) # debugging
+            else:
+                raise ValueError(
+                    f"expected euler or ddim scheduler, got {scheduler_type}"
+                )
+            f_x = (next_latent - latent).abs().sum()
             # print(
-            #     "residual", score, "regularizer fraction", (regularizer / score).item()
+            #     f"norms {torch.linalg.norm(f_x).item():5e} {torch.linalg.norm(regularizer).item():5e}"
             # )
+            l = f_x + regularizer
+            score = f_x.mean()
 
             if score < best_score:
                 best_score = score
@@ -364,7 +391,6 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
             latent = latent - (1 / (64 * 64 * 4)) * (l / latent.grad)
             latent.grad = None
             latent._grad_fn = None
-        # print("norm after step", torch.norm(best_latent))
         return best_latent
 
     @torch.no_grad()
