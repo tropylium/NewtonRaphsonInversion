@@ -8,8 +8,11 @@ Observe the similar pose of the foreground animal and background of two images.
 |![](sample_images/lion.png)|![](sample_images/dog.png)|![](sample_images/raccoon.png)|
 
 # My Changes
-* Fixed various errors to get `ReadlTimeEditingNotebook.ipynb` working (import, device errors)
-* Fixed CFG error allowing guidance scale > 1.0
-* Fixed inversion not actually inverting to the final timestep (this may be an SDXL-specific thing)
+* Fixed various errors to get `RealTimeEditingNotebook.ipynb` working (import, device errors)
+* Updated GNRI algorithm to latest version of paper
+* Fixed CFG error, allowing editing with guidance scale > 1.0
+* Fixed inversion not actually inverting to the final timestep 
+  * (this may be an SDXL-specific thing, not sure if this is actually a bug)
+  * Appears subjectively to give better results on a small number of test runs
 * Additionally separated inversion/ inference to two GPU's because mine aren't large enough to fit SDXL on one GPU
-* Implemented DDIM Scheduler in addition to Euler Scheduler
+* Implemented GNRI with DDIM Scheduler in addition to Euler Scheduler
