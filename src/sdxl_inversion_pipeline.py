@@ -338,6 +338,7 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
         n_iters, alpha, lr, scheduler_type = inv_hp
         latent = z_t
         best_latent = None
+        best_i = None
         best_score = torch.inf
 
         # print(f"inverting for timestep: {t}")
@@ -348,10 +349,12 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
             noise_pred = self.unet_pass(latent, t, prompt_embeds, added_cond_kwargs)
 
             next_latent = self.backward_step(noise_pred, t, z_t, prev_timestep)
+
             # print("next latent shape", next_latent.shape)
 
             # GNRI v2 objective
             # f_x = (next_latent - latent).abs() - alpha * curr_dist(next_latent)
+            # l = f_x.sum()
 
             # GNRI v4 objective
             if scheduler_type == "euler":
@@ -376,26 +379,33 @@ class SDXLDDIMPipeline(StableDiffusionXLImg2ImgPipeline):
                     / (1 - self.scheduler.alphas_cumprod[t])
                     * torch.linalg.norm(latent - mu_t)
                 )
-                # regularizer = torch.tensor([0.0], device=device) # debugging
             else:
                 raise ValueError(
                     f"expected euler or ddim scheduler, got {scheduler_type}"
                 )
             f_x = (next_latent - latent).abs().sum()
-            # print(
-            #     f"norms {torch.linalg.norm(f_x).item():5e} {torch.linalg.norm(regularizer).item():5e}"
-            # )
             l = f_x + regularizer
+            # l = regularizer
+
+            print(
+                f"\troot {torch.linalg.norm(f_x).item():5e}"
+                + f" regularizer {torch.linalg.norm(regularizer).item():2e}"
+            )
+
             score = f_x.mean()
 
             if score < best_score:
                 best_score = score
+                best_i = i
                 best_latent = next_latent.detach()
 
             l.backward()
             latent = latent - (1 / (64 * 64 * 4)) * (l / latent.grad)
+
             latent.grad = None
             latent._grad_fn = None
+        print("best_i", best_i)
+        # return next_latent
         return best_latent
 
     @torch.no_grad()
